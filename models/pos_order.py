@@ -123,7 +123,7 @@ class PosOrder(models.Model):
         invoice = settlement.x_grouped_invoice_id
         if invoice:
             if not invoice.invoice_pdf_report_id:
-                invoice.with_context(skip_invoice_sync=True)._generate_and_send()
+                invoice.with_context(skip_invoice_sync=True)._generate_and_send(sending_methods=["manual"])
             return {"invoice_id": invoice.id}
         orders = settlement._x_check_settled_orders()
         return {
@@ -176,5 +176,7 @@ class PosOrder(models.Model):
         settlement.x_grouped_invoice_id = invoice
         # PDF officiel, APRÈS le lettrage et la note (comme le natif, qui le
         # fabrique à la facturation). Sans lui : version « proforma ».
-        invoice.with_context(skip_invoice_sync=True)._generate_and_send()
+        # Méthode « manual » : PDF rangé avec la facture, AUCUN e-mail
+        # envoyé (la réception l'envoie elle-même avec le bouton Envoyer).
+        invoice.with_context(skip_invoice_sync=True)._generate_and_send(sending_methods=["manual"])
         return {"invoice_id": invoice.id}
