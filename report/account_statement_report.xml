@@ -109,19 +109,19 @@
         </t>
     </template>
     <!-- Variante « par ticket » : même gabarit, données sans le détail des
-         articles (report.pos_customer_account_intc.report_account_statement_summary). -->
+         articles (report.pos_customer_account_intc.report_statement_summary). -->
     <record id="action_report_account_statement_summary" model="ir.actions.report">
         <field name="name">Relevé de compte client (POS, par ticket)</field>
         <field name="model">res.partner</field>
         <field name="report_type">qweb-pdf</field>
-        <field name="report_name">pos_customer_account_intc.report_account_statement_summary</field>
-        <field name="report_file">pos_customer_account_intc.report_account_statement_summary</field>
+        <field name="report_name">pos_customer_account_intc.report_statement_summary</field>
+        <field name="report_file">pos_customer_account_intc.report_statement_summary</field>
         <field name="print_report_name">'Relevé - %s' % (object.name)</field>
         <field name="binding_model_id" ref="base.model_res_partner"/>
         <field name="binding_type">report</field>
     </record>
 
-    <template id="report_account_statement_summary">
+    <template id="report_statement_summary">
         <t t-call="pos_customer_account_intc.report_account_statement"/>
     </template>
 </odoo>

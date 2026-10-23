@@ -31,7 +31,7 @@ class ReportAccountStatement(models.AbstractModel):
 
 
 class ReportAccountStatementSummary(models.AbstractModel):
-    _name = "report.pos_customer_account_intc.report_account_statement_summary"
+    _name = "report.pos_customer_account_intc.report_statement_summary"
     _inherit = "report.pos_customer_account_intc.report_account_statement"
     _description = "Relevé de compte client (POS, par ticket)"
 
