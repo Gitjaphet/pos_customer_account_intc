@@ -150,9 +150,16 @@ class PosOrder(models.Model):
 
         # Note : le paiement réel du règlement.
         settle_date = fields.Datetime.context_timestamp(settlement, settlement.date_order)
+        # Montant net par mode : la monnaie rendue (ligne d'espèces négative)
+        # est déduite ; deux modes donnent « Espèces X, Carte Y ».
         payments = settlement.payment_ids.filtered(lambda p: p.payment_method_id.type != "pay_later")
+        net_by_method = {}
+        for payment in payments:
+            net_by_method[payment.payment_method_id] = net_by_method.get(payment.payment_method_id, 0.0) + payment.amount
         detail = ", ".join(
-            f"{p.payment_method_id.name} {invoice.currency_id.format(p.amount)}" for p in payments
+            f"{method.name} {invoice.currency_id.format(amount)}"
+            for method, amount in net_by_method.items()
+            if not invoice.currency_id.is_zero(amount)
         )
         note = _(
             "Réglé le %(date)s au restaurant (ticket %(ticket)s) : %(detail)s",
