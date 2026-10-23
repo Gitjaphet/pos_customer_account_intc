@@ -4,18 +4,20 @@ from odoo.exceptions import UserError
 
 class PosOrder(models.Model):
     """Facture regroupée des tickets réglés par un règlement de dette
-    (pos_settle_due), en réutilisant le moteur de facturation natif du POS
+    (pos_settle_due), avec le moteur de facturation natif du POS
     (_generate_pos_order_invoice, qui accepte plusieurs tickets).
 
     Comptabilité (23/10/2026) :
-    - natif : les lignes et taxes des tickets ; pour chaque ticket d'une
-      session fermée, l'écriture d'annulation de la clôture de session
+    - natif : lignes et taxes des tickets ; pour chaque ticket d'une session
+      fermée, l'annulation de la clôture de session
       (_create_misc_reversal_move), qui retire son revenu, ses taxes et sa
       dette « Compte client » ;
-    - ici : la facture est lettrée avec ces annulations (elle passe à
-      « Payé ») ; la dette d'origine reste soldée par le règlement
-      (lettrage natif de pos_settle_due à la clôture de sa session).
-    Tickets de sessions encore ouvertes : refusés (autre chemin natif).
+    - ici : la facture est lettrée avec ces annulations (« Payé ») ; la
+      dette d'origine reste soldée par le règlement (lettrage natif de
+      pos_settle_due à la clôture de sa session).
+    Présentation : détaillée (un titre par ticket, puis ses articles, sans
+    les descriptions de vente) ou par ticket (une ligne par ticket et par
+    taux de TVA). Tickets de sessions encore ouvertes : refusés.
     """
     _inherit = "pos.order"
 
@@ -27,34 +29,70 @@ class PosOrder(models.Model):
         help="Sur un règlement de dette : la facture regroupée des tickets qu'il a réglés.",
     )
 
+    # --- Lignes de la facture regroupée ---------------------------------
+
+    def _get_invoice_lines_values(self, line_values, pos_line, move_type):
+        vals = super()._get_invoice_lines_values(line_values, pos_line, move_type)
+        if self.env.context.get("x_grouped_invoice"):
+            if vals.get("display_type") == "line_section":
+                # Formule (combo) : sous-section, sous le titre de son ticket.
+                vals["display_type"] = "line_subsection"
+            elif vals.get("product_id"):
+                # Le nom de l'article, comme sur le ticket (sans la description de vente).
+                vals["name"] = pos_line.full_product_name or pos_line.product_id.display_name
+        return vals
+
+    def _x_ticket_label(self):
+        self.ensure_one()
+        order_date = fields.Datetime.context_timestamp(self, self.date_order)
+        return f"{order_date.strftime('%d/%m/%Y %H:%M')} — Ticket {self.pos_reference or self.name}"
+
     def _prepare_invoice_lines(self, move_type):
-        """Facture regroupée : un titre de section par ticket, puis ses
-        lignes natives (taxes, remises, notes)."""
-        if not self.env.context.get("x_grouped_invoice") or len(self) == 1:
+        if not self.env.context.get("x_grouped_invoice"):
             return super()._prepare_invoice_lines(move_type)
+        summary = self.env.context.get("x_grouped_layout") == "summary"
         lines = []
         for order in self.sorted("date_order"):
-            order_date = fields.Datetime.context_timestamp(order, order.date_order)
-            lines.append((0, None, {
-                "display_type": "line_section",
-                "name": f"{order_date.strftime('%d/%m/%Y %H:%M')} — Ticket {order.pos_reference or order.name}",
-            }))
-            lines += super(PosOrder, order)._prepare_invoice_lines(move_type)
+            native = super(PosOrder, order)._prepare_invoice_lines(move_type)
+            if not summary:
+                lines.append((0, None, {"display_type": "line_section", "name": order._x_ticket_label()}))
+                lines += native
+                continue
+            # Par ticket : une ligne par taux de TVA (même taxes que les
+            # articles, donc TVA identique), au total de ses articles.
+            groups = {}
+            for _command, _record_id, vals in native:
+                if vals.get("display_type") or not vals.get("product_id"):
+                    continue
+                tax_ids = tuple(sorted(vals["tax_ids"][0][2])) if vals.get("tax_ids") else ()
+                amount = vals["quantity"] * vals["price_unit"] * (1 - (vals.get("discount") or 0.0) / 100.0)
+                groups[tax_ids] = groups.get(tax_ids, 0.0) + amount
+            for tax_ids, amount in groups.items():
+                name = order._x_ticket_label()
+                if tax_ids and len(groups) > 1:
+                    name += " (" + ", ".join(self.env["account.tax"].browse(tax_ids).mapped("name")) + ")"
+                lines.append((0, None, {
+                    "name": name,
+                    "quantity": 1.0,
+                    "price_unit": amount,
+                    "tax_ids": [(6, 0, list(tax_ids))],
+                }))
         return lines
 
+    # --- Depuis le POS ---------------------------------------------------
+
     @api.model
-    def x_grouped_invoice_from_settlement(self, settlement_uuid):
-        """Depuis le POS : facture regroupée des tickets réglés par le
-        règlement `settlement_uuid`. Renvoie la facture (existante si déjà
-        faite)."""
+    def _x_find_settlement(self, settlement_uuid):
         settlement = self.search([("uuid", "=", settlement_uuid)], limit=1)
         if not settlement:
             raise UserError(_("Règlement introuvable. Réessayez dans un instant."))
-        if settlement.x_grouped_invoice_id:
-            invoice = settlement.x_grouped_invoice_id
-            return {"invoice_id": invoice.id, "name": invoice.name}
+        return settlement
 
-        orders = settlement.lines.settled_order_id
+    def _x_check_settled_orders(self):
+        """`self` : le règlement. Renvoie les tickets à facturer, ou refuse
+        avec un message clair."""
+        self.ensure_one()
+        orders = self.lines.settled_order_id
         if not orders:
             raise UserError(_("Ce ticket ne règle aucun ticket du compte client."))
         if orders.filtered("account_move"):
@@ -75,14 +113,41 @@ class PosOrder(models.Model):
                 "(session %s encore ouverte).",
                 ", ".join(open_sessions.mapped("name")),
             ))
+        return orders
+
+    @api.model
+    def x_grouped_invoice_info(self, settlement_uuid):
+        """Avant de demander la présentation : la facture si elle existe
+        déjà, sinon vérifie que la facturation est possible."""
+        settlement = self._x_find_settlement(settlement_uuid)
+        invoice = settlement.x_grouped_invoice_id
+        if invoice:
+            if not invoice.invoice_pdf_report_id:
+                invoice.with_context(skip_invoice_sync=True)._generate_and_send()
+            return {"invoice_id": invoice.id}
+        orders = settlement._x_check_settled_orders()
+        return {
+            "invoice_id": False,
+            "partner_name": orders.partner_id.commercial_partner_id.name,
+            "count": len(orders),
+        }
+
+    @api.model
+    def x_grouped_invoice_from_settlement(self, settlement_uuid, layout="detailed"):
+        """Crée la facture regroupée des tickets réglés par le règlement
+        (ou renvoie la facture existante)."""
+        settlement = self._x_find_settlement(settlement_uuid)
+        if settlement.x_grouped_invoice_id:
+            return self.x_grouped_invoice_info(settlement_uuid)
+        orders = settlement._x_check_settled_orders()
 
         invoice = orders.with_context(
-            x_grouped_invoice=True, generate_pdf=False
+            x_grouped_invoice=True,
+            x_grouped_layout="summary" if layout == "summary" else "detailed",
+            generate_pdf=False,
         )._generate_pos_order_invoice()
 
-        # Lettrage de la facture avec les annulations natives des clôtures de
-        # session : la facture est réglée (sa dette a été soldée par le
-        # règlement).
+        # Lettrage avec les annulations natives des clôtures de session.
         receivable = invoice.commercial_partner_id.property_account_receivable_id
         reversal_lines = self.env["account.move"].search([
             ("reversed_pos_order_id", "in", orders.ids),
@@ -95,7 +160,7 @@ class PosOrder(models.Model):
         if reversal_lines and invoice_lines:
             (reversal_lines | invoice_lines).reconcile()
 
-        # Note : le paiement réel (espèces, carte...) du règlement.
+        # Note : le paiement réel du règlement.
         settle_date = fields.Datetime.context_timestamp(settlement, settlement.date_order)
         payments = settlement.payment_ids.filtered(lambda p: p.payment_method_id.type != "pay_later")
         detail = ", ".join(
@@ -109,4 +174,7 @@ class PosOrder(models.Model):
         )
         invoice.narration = f"{invoice.narration or ''}<p>{note}</p>"
         settlement.x_grouped_invoice_id = invoice
-        return {"invoice_id": invoice.id, "name": invoice.name}
+        # PDF officiel, APRÈS le lettrage et la note (comme le natif, qui le
+        # fabrique à la facturation). Sans lui : version « proforma ».
+        invoice.with_context(skip_invoice_sync=True)._generate_and_send()
+        return {"invoice_id": invoice.id}
