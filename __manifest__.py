@@ -1,0 +1,21 @@
+{
+    "name": "INTC POS — Compte client : relevé et facture regroupée",
+    "version": "19.0.1.0.0",
+    "category": "Sales/Point of Sale",
+    "summary": "Relevé des tickets en compte client (ticket et PDF), facture regroupée après règlement",
+    "description": """
+Clients extérieurs du restaurant qui consomment à crédit (moyen de paiement
+« Compte client ») et règlent plus tard :
+- relevé de tout ce qu'ils doivent, détaillé ou par ticket, sur l'imprimante
+  de tickets ou en PDF ;
+- (à venir) ticket de règlement lisible et facture regroupée après paiement.
+S'appuie sur pos_settle_due (calcul natif de la dette), sans le modifier.
+""",
+    "author": "INTC Madagascar",
+    "website": "https://intc.mg",
+    "license": "OPL-1",
+    "depends": ["point_of_sale", "pos_settle_due"],
+    "data": [],
+    "installable": True,
+    "application": False,
+}
