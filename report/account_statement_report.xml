@@ -11,49 +11,70 @@
         <field name="binding_type">report</field>
     </record>
 
+    <!-- Même structure et mêmes classes que la facture native
+         (account.report_invoice_document) : le relevé suit le modèle de
+         document choisi par la société (Light, Boxed, Bold, Striped,
+         Bubble...). -->
     <template id="report_account_statement">
         <t t-call="web.html_container">
             <t t-foreach="statements" t-as="st">
                 <t t-set="o" t-value="st['partner']"/>
                 <t t-set="d" t-value="st['data']"/>
                 <t t-call="web.external_layout">
+                    <t t-set="address">
+                        <div t-field="o.commercial_partner_id"
+                             t-options='{"widget": "contact", "fields": ["address", "name"], "no_marker": True}'/>
+                    </t>
                     <div class="page">
-                        <h3>Relevé de compte</h3>
-                        <p>
-                            <strong t-esc="d['partner_name']"/><br/>
-                            <span class="text-muted">Édité le <t t-esc="d['printed_on']"/></span>
-                        </p>
+                        <h2>Relevé de compte</h2>
+
+                        <div id="informations" class="row mt-4 mb-4">
+                            <div class="col-auto col-3 mw-100 mb-2">
+                                <strong>Date d'édition</strong>
+                                <div t-esc="d['printed_on']"/>
+                            </div>
+                            <div class="col-auto col-3 mw-100 mb-2">
+                                <strong>Tickets non réglés</strong>
+                                <div t-esc="len(d['orders'])"/>
+                            </div>
+                            <div class="col-auto col-3 mw-100 mb-2">
+                                <strong>Total dû</strong>
+                                <div t-esc="d['total_due']"
+                                     t-options='{"widget": "monetary", "display_currency": currency}'/>
+                            </div>
+                        </div>
+
                         <p t-if="not d['orders']">Aucune somme due.</p>
-                        <table t-if="d['orders']" class="table table-sm o_main_table">
+
+                        <table t-if="d['orders']" class="o_main_table table table-borderless">
                             <thead>
                                 <tr>
-                                    <th>Date</th>
-                                    <th>Ticket</th>
+                                    <th class="text-start">Description</th>
                                     <th class="text-end">Montant</th>
                                     <th class="text-end">Reste à payer</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 <t t-foreach="d['orders']" t-as="order">
-                                    <tr>
-                                        <td t-esc="order['date']"/>
-                                        <td><strong t-esc="order['reference']"/></td>
+                                    <tr class="fw-bold">
+                                        <td>
+                                            <t t-esc="order['date']"/> — Ticket <t t-esc="order['reference']"/>
+                                        </td>
                                         <td class="text-end">
                                             <span t-esc="order['amount_total']"
                                                   t-options='{"widget": "monetary", "display_currency": currency}'/>
                                         </td>
                                         <td class="text-end">
-                                            <strong t-esc="order['due']"
-                                                    t-options='{"widget": "monetary", "display_currency": currency}'/>
+                                            <span t-esc="order['due']"
+                                                  t-options='{"widget": "monetary", "display_currency": currency}'/>
                                         </td>
                                     </tr>
                                     <t t-foreach="order['lines']" t-as="line">
-                                        <tr class="text-muted small">
-                                            <td/>
-                                            <td>
+                                        <tr>
+                                            <td class="ps-4">
                                                 <t t-esc="'%g' % line['qty']"/> × <t t-esc="line['name']"/>
                                                 <t t-foreach="line['items']" t-as="item">
-                                                    <br/>· <t t-esc="item"/>
+                                                    <br/><span class="text-muted small">· <t t-esc="item"/></span>
                                                 </t>
                                             </td>
                                             <td class="text-end">
@@ -65,16 +86,23 @@
                                     </t>
                                 </t>
                             </tbody>
-                            <tfoot>
-                                <tr>
-                                    <td colspan="3" class="text-end"><strong>Total dû</strong></td>
-                                    <td class="text-end">
-                                        <strong t-esc="d['total_due']"
-                                                t-options='{"widget": "monetary", "display_currency": currency}'/>
-                                    </td>
-                                </tr>
-                            </tfoot>
                         </table>
+
+                        <div t-if="d['orders']" class="clearfix" name="so_total_summary">
+                            <div id="total" class="row">
+                                <div class="col-6 ms-auto">
+                                    <table class="table table-sm table-borderless">
+                                        <tr class="border-black o_total">
+                                            <td><strong>Total dû</strong></td>
+                                            <td class="text-end">
+                                                <strong t-esc="d['total_due']"
+                                                        t-options='{"widget": "monetary", "display_currency": currency}'/>
+                                            </td>
+                                        </tr>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </t>
             </t>
