@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+    <t t-name="pos_customer_account_intc.AccountStatementPopup">
+        <Dialog title="'Relevé de compte — ' + props.partner.name" size="'md'">
+            <div t-if="state.summary">
+                <p class="fs-5">
+                    Total dû :
+                    <strong t-out="env.utils.formatCurrency(state.summary.total_due)"/>
+                    <span class="text-muted">
+                        (<t t-out="state.summary.orders.length"/> ticket(s) non réglé(s))
+                    </span>
+                </p>
+                <div class="mb-3">
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" id="layout_detailed"
+                               t-att-checked="state.layout === 'detailed'"
+                               t-on-change="() => this.state.layout = 'detailed'"/>
+                        <label class="form-check-label" for="layout_detailed">Détaillée (les articles de chaque ticket)</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" id="layout_summary"
+                               t-att-checked="state.layout === 'summary'"
+                               t-on-change="() => this.state.layout = 'summary'"/>
+                        <label class="form-check-label" for="layout_summary">Par ticket (n° et montant)</label>
+                    </div>
+                </div>
+            </div>
+            <t t-set-slot="footer">
+                <button class="btn btn-primary" t-att-disabled="state.busy" t-on-click="printTicket">
+                    Imprimer le ticket
+                </button>
+                <button class="btn btn-secondary" t-on-click="printPdf">PDF</button>
+                <button class="btn btn-secondary" t-on-click="props.close">Fermer</button>
+            </t>
+        </Dialog>
+    </t>
+</templates>

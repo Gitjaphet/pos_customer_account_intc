@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+    <!-- Menu d'un client dans le POS (gabarit de pos_settle_due) :
+         « Relevé de compte » après « Settle orders », seulement s'il a des
+         tickets non réglés. -->
+    <t t-inherit="CustomDropdownItems" t-inherit-mode="extension">
+        <xpath expr="//DropdownItem[contains(@onSelected, 'settleCustomerDue')]" position="after">
+            <DropdownItem onSelected="() => this.openAccountStatement()">
+                Relevé de compte
+            </DropdownItem>
+        </xpath>
+    </t>
+</templates>

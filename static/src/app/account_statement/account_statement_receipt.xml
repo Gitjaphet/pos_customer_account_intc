@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+    <t t-name="pos_customer_account_intc.AccountStatementReceipt">
+        <div class="pos-receipt">
+            <div class="text-center">
+                <div class="fw-bold" t-out="props.company.name"/>
+                <div style="font-size: 75%;">
+                    <t t-if="props.company.street" t-out="props.company.street"/>
+                    <t t-if="props.company.city" t-out="', ' + props.company.city"/>
+                    <div t-if="props.company.phone">Tél : <t t-out="props.company.phone"/></div>
+                    <div t-if="props.company.vat">NIF/TVA : <t t-out="props.company.vat"/></div>
+                </div>
+            </div>
+            <div class="pos-receipt-center-align pt-3 fw-bold">RELEVÉ DE COMPTE</div>
+            <div class="text-center">
+                <div class="fw-bold" t-out="props.data.partner_name"/>
+                <div style="font-size: 75%;">Édité le <t t-out="props.data.printed_on"/></div>
+            </div>
+            <div class="pt-3">
+                <t t-foreach="props.data.orders" t-as="order" t-key="order.id">
+                    <div class="fw-bold pt-2">
+                        <t t-out="order.reference"/>
+                        <span class="pos-receipt-right-align" t-out="env.utils.formatCurrency(order.due)"/>
+                    </div>
+                    <div style="font-size: 75%;" t-out="order.date"/>
+                    <t t-foreach="order.lines" t-as="line" t-key="line_index">
+                        <div class="ps-2">
+                            <t t-out="line.qty"/> x <t t-out="line.name"/>
+                            <span class="pos-receipt-right-align" t-out="env.utils.formatCurrency(line.amount)"/>
+                        </div>
+                        <t t-foreach="line.items" t-as="item" t-key="item_index">
+                            <div class="ps-3" style="font-size: 75%;">· <t t-out="item"/></div>
+                        </t>
+                    </t>
+                </t>
+                <div t-if="!props.data.orders.length" class="text-center">Aucune somme due.</div>
+            </div>
+            <div class="pt-3 fw-bold" style="font-size: 120%;">
+                TOTAL DÛ
+                <span class="pos-receipt-right-align" t-out="env.utils.formatCurrency(props.data.total_due)"/>
+            </div>
+            <div class="text-center pt-3" style="font-size: 75%;">
+                <t t-out="props.data.orders.length"/> ticket(s) non réglé(s)
+            </div>
+        </div>
+    </t>
+</templates>

@@ -1,6 +1,6 @@
 {
     "name": "INTC POS — Compte client : relevé et facture regroupée",
-    "version": "19.0.1.0.3",
+    "version": "19.0.1.0.4",
     "category": "Sales/Point of Sale",
     "summary": "Relevé des tickets en compte client (ticket et PDF), facture regroupée après règlement",
     "description": """
@@ -19,6 +19,11 @@ S'appuie sur pos_settle_due (calcul natif de la dette), sans le modifier.
     "data": [
         "report/account_statement_report.xml",
     ],
+    "assets": {
+        "point_of_sale._assets_pos": [
+            "pos_customer_account_intc/static/src/**/*",
+        ],
+    },
     "installable": True,
     "application": False,
 }
