@@ -2,7 +2,13 @@
 <templates xml:space="preserve">
     <t t-name="pos_customer_account_intc.GroupedInvoiceLayoutPopup">
         <Dialog title="'Facture regroupée — ' + props.partnerName" size="'md'">
-            <p><t t-out="props.count"/> ticket(s) réglé(s). Présentation de la facture :</p>
+            <p t-if="props.invoiceName">
+                Facture <strong t-out="props.invoiceName"/> (<t t-out="props.count"/> ticket(s)).
+            </p>
+            <p t-else="">
+                <t t-out="props.count"/> ticket(s) réglé(s) : la facture sera créée.
+            </p>
+            <p>Présentation à imprimer :</p>
             <div class="form-check">
                 <input class="form-check-input" type="radio" id="gi_detailed"
                        t-att-checked="state.layout === 'detailed'"
@@ -15,9 +21,8 @@
                        t-on-change="() => this.state.layout = 'summary'"/>
                 <label class="form-check-label" for="gi_summary">Par ticket (n° et montant)</label>
             </div>
-            <p class="text-muted small mt-3">Une fois créée, la facture garde cette présentation.</p>
             <t t-set-slot="footer">
-                <button class="btn btn-primary" t-on-click="confirm">Créer la facture</button>
+                <button class="btn btn-primary" t-on-click="confirm">Imprimer</button>
                 <button class="btn btn-secondary" t-on-click="props.close">Annuler</button>
             </t>
         </Dialog>

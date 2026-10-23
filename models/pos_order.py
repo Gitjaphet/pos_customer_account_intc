@@ -15,9 +15,10 @@ class PosOrder(models.Model):
     - ici : la facture est lettrée avec ces annulations (« Payé ») ; la
       dette d'origine reste soldée par le règlement (lettrage natif de
       pos_settle_due à la clôture de sa session).
-    Présentation : détaillée (un titre par ticket, puis ses articles, sans
-    les descriptions de vente) ou par ticket (une ligne par ticket et par
-    taux de TVA). Tickets de sessions encore ouvertes : refusés.
+    La facture est TOUJOURS enregistrée en détaillé (un titre par ticket,
+    puis ses articles, sans les descriptions de vente). La présentation
+    « par ticket » est un format d'impression (account_move.py), jamais une
+    autre facture. Tickets de sessions encore ouvertes : refusés.
     """
     _inherit = "pos.order"
 
@@ -50,33 +51,10 @@ class PosOrder(models.Model):
     def _prepare_invoice_lines(self, move_type):
         if not self.env.context.get("x_grouped_invoice"):
             return super()._prepare_invoice_lines(move_type)
-        summary = self.env.context.get("x_grouped_layout") == "summary"
         lines = []
         for order in self.sorted("date_order"):
-            native = super(PosOrder, order)._prepare_invoice_lines(move_type)
-            if not summary:
-                lines.append((0, None, {"display_type": "line_section", "name": order._x_ticket_label()}))
-                lines += native
-                continue
-            # Par ticket : une ligne par taux de TVA (même taxes que les
-            # articles, donc TVA identique), au total de ses articles.
-            groups = {}
-            for _command, _record_id, vals in native:
-                if vals.get("display_type") or not vals.get("product_id"):
-                    continue
-                tax_ids = tuple(sorted(vals["tax_ids"][0][2])) if vals.get("tax_ids") else ()
-                amount = vals["quantity"] * vals["price_unit"] * (1 - (vals.get("discount") or 0.0) / 100.0)
-                groups[tax_ids] = groups.get(tax_ids, 0.0) + amount
-            for tax_ids, amount in groups.items():
-                name = order._x_ticket_label()
-                if tax_ids and len(groups) > 1:
-                    name += " (" + ", ".join(self.env["account.tax"].browse(tax_ids).mapped("name")) + ")"
-                lines.append((0, None, {
-                    "name": name,
-                    "quantity": 1.0,
-                    "price_unit": amount,
-                    "tax_ids": [(6, 0, list(tax_ids))],
-                }))
+            lines.append((0, None, {"display_type": "line_section", "name": order._x_ticket_label()}))
+            lines += super(PosOrder, order)._prepare_invoice_lines(move_type)
         return lines
 
     # --- Depuis le POS ---------------------------------------------------
@@ -115,25 +93,37 @@ class PosOrder(models.Model):
             ))
         return orders
 
+    @staticmethod
+    def _x_ensure_invoice_pdf(invoice):
+        """PDF officiel rangé avec la facture, SANS envoi (méthode
+        « manual ») ; la réception l'envoie elle-même avec le bouton Envoyer."""
+        if not invoice.invoice_pdf_report_id:
+            invoice.with_context(skip_invoice_sync=True)._generate_and_send(sending_methods=["manual"])
+
     @api.model
     def x_grouped_invoice_info(self, settlement_uuid):
-        """Avant de demander la présentation : la facture si elle existe
-        déjà, sinon vérifie que la facturation est possible."""
+        """Avant la fenêtre d'impression : la facture si elle existe déjà,
+        sinon vérifie que la facturation est possible."""
         settlement = self._x_find_settlement(settlement_uuid)
         invoice = settlement.x_grouped_invoice_id
         if invoice:
-            if not invoice.invoice_pdf_report_id:
-                invoice.with_context(skip_invoice_sync=True)._generate_and_send(sending_methods=["manual"])
-            return {"invoice_id": invoice.id}
+            self._x_ensure_invoice_pdf(invoice)
+            return {
+                "invoice_id": invoice.id,
+                "invoice_name": invoice.name,
+                "partner_name": invoice.partner_id.name,
+                "count": len(invoice.pos_order_ids),
+            }
         orders = settlement._x_check_settled_orders()
         return {
             "invoice_id": False,
+            "invoice_name": "",
             "partner_name": orders.partner_id.commercial_partner_id.name,
             "count": len(orders),
         }
 
     @api.model
-    def x_grouped_invoice_from_settlement(self, settlement_uuid, layout="detailed"):
+    def x_grouped_invoice_from_settlement(self, settlement_uuid):
         """Crée la facture regroupée des tickets réglés par le règlement
         (ou renvoie la facture existante)."""
         settlement = self._x_find_settlement(settlement_uuid)
@@ -142,9 +132,7 @@ class PosOrder(models.Model):
         orders = settlement._x_check_settled_orders()
 
         invoice = orders.with_context(
-            x_grouped_invoice=True,
-            x_grouped_layout="summary" if layout == "summary" else "detailed",
-            generate_pdf=False,
+            x_grouped_invoice=True, generate_pdf=False
         )._generate_pos_order_invoice()
 
         # Lettrage avec les annulations natives des clôtures de session.
@@ -174,9 +162,6 @@ class PosOrder(models.Model):
         )
         invoice.narration = f"{invoice.narration or ''}<p>{note}</p>"
         settlement.x_grouped_invoice_id = invoice
-        # PDF officiel, APRÈS le lettrage et la note (comme le natif, qui le
-        # fabrique à la facturation). Sans lui : version « proforma ».
-        # Méthode « manual » : PDF rangé avec la facture, AUCUN e-mail
-        # envoyé (la réception l'envoie elle-même avec le bouton Envoyer).
-        invoice.with_context(skip_invoice_sync=True)._generate_and_send(sending_methods=["manual"])
-        return {"invoice_id": invoice.id}
+        # PDF officiel APRÈS le lettrage et la note (« Payé », mode de paiement).
+        self._x_ensure_invoice_pdf(invoice)
+        return {"invoice_id": invoice.id, "invoice_name": invoice.name}

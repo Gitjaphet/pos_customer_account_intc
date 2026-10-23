@@ -9,6 +9,7 @@ patch(ReceiptScreen.prototype, {
     setup() {
         super.setup(...arguments);
         this.xInvoiceService = useService("account_move");
+        this.xReport = useService("report");
         this.xGrouped = useState({ busy: false });
     },
 
@@ -25,6 +26,7 @@ patch(ReceiptScreen.prototype, {
                 pos: this.pos,
                 dialog: this.env.services.dialog,
                 invoiceService: this.xInvoiceService,
+                report: this.xReport,
                 uuid: this.currentOrder.uuid,
             });
         } finally {

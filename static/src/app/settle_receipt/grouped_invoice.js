@@ -4,31 +4,39 @@ import { makeAwaitable } from "@point_of_sale/app/utils/make_awaitable_dialog";
 import { GroupedInvoiceLayoutPopup } from "@pos_customer_account_intc/app/settle_receipt/grouped_invoice_layout_popup";
 
 /**
- * Facture regroupée d'un règlement : la facture existante, sinon (après
- * vérification serveur) le choix de la présentation puis la création ;
- * enfin le PDF, comme les factures natives (service account_move).
- * Renvoie true si une facture a été téléchargée.
+ * Facture regroupée d'un règlement : vérification serveur, choix de la
+ * présentation (à chaque impression), création de la facture la première
+ * fois, puis le PDF : détaillé = PDF officiel (service account_move),
+ * par ticket = format « Facture (par ticket) » (même facture).
+ * Renvoie true si un PDF a été produit.
  */
-export async function openGroupedInvoice({ pos, dialog, invoiceService, uuid }) {
+export async function openGroupedInvoice({ pos, dialog, invoiceService, report, uuid }) {
     try {
         const info = await pos.data.call("pos.order", "x_grouped_invoice_info", [uuid]);
+        const layout = await makeAwaitable(dialog, GroupedInvoiceLayoutPopup, {
+            partnerName: info.partner_name,
+            count: info.count,
+            invoiceName: info.invoice_name || "",
+        });
+        if (!layout) {
+            return false;
+        }
         let invoiceId = info.invoice_id;
         if (!invoiceId) {
-            const layout = await makeAwaitable(dialog, GroupedInvoiceLayoutPopup, {
-                partnerName: info.partner_name,
-                count: info.count,
-            });
-            if (!layout) {
-                return false;
-            }
             const result = await pos.data.call(
                 "pos.order",
                 "x_grouped_invoice_from_settlement",
-                [uuid, layout]
+                [uuid]
             );
             invoiceId = result.invoice_id;
         }
-        await invoiceService.downloadPdf(invoiceId);
+        if (layout === "summary") {
+            await report.doAction("pos_customer_account_intc.action_report_invoice_by_ticket", [
+                invoiceId,
+            ]);
+        } else {
+            await invoiceService.downloadPdf(invoiceId);
+        }
         return true;
     } catch (error) {
         dialog.add(AlertDialog, {
