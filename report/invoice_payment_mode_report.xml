@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Facture regroupée, base SANS module hôtel : le mode de paiement réel
+         du règlement après « Payé le … » (le module hôtel l'affiche déjà
+         lui-même via journal_name ; x_payment_label est alors vide). -->
+    <template id="report_invoice_document_payment_mode" inherit_id="account.report_invoice_document">
+        <xpath expr="//i[hasclass('oe_payment_label')]" position="inside">
+            <span t-if="payment_vals.get('x_payment_label')"> (<t t-out="payment_vals['x_payment_label']"/>)</span>
+        </xpath>
+    </template>
+</odoo>
