@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+    <!-- Écran du ticket : « Facture regroupée » après « Imprimer le reçu
+         complet », seulement sur un règlement de dette. -->
+    <t t-inherit="point_of_sale.ReceiptScreen" t-inherit-mode="extension">
+        <xpath expr="//button[contains(@t-on-click, 'doFullPrint')]" position="after">
+            <button t-if="xIsSettlement"
+                    class="button print btn btn-lg btn-secondary w-100 py-3"
+                    t-att-disabled="xGrouped.busy"
+                    t-on-click="() => this.xGroupedInvoice()">
+                <i t-attf-class="fa {{xGrouped.busy ? 'fa-fw fa-spin fa-circle-o-notch' : 'fa-file-pdf-o'}} me-1"/>
+                Facture regroupée
+            </button>
+        </xpath>
+    </t>
+</templates>
