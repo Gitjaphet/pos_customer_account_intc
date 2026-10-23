@@ -39,10 +39,14 @@ export class AccountStatementPopup extends Component {
         this.state.busy = true;
         try {
             const data = await this.fetchStatement(this.state.layout);
-            await this.pos.printer.print(AccountStatementReceipt, {
-                data,
-                company: this.pos.company,
-            });
+            // Mêmes options d'impression que l'Addition (pos.printReceipt) :
+            // imprimante reliée au POS, sinon le navigateur (choix de
+            // l'imprimante), selon la configuration du point de vente.
+            await this.pos.printer.print(
+                AccountStatementReceipt,
+                { data, company: this.pos.company },
+                this.pos.printOptions
+            );
         } finally {
             this.state.busy = false;
         }
