@@ -4,7 +4,10 @@ import { useService } from "@web/core/utils/hooks";
 import { ReceiptScreen } from "@point_of_sale/app/screens/receipt_screen/receipt_screen";
 import { openGroupedInvoice } from "@pos_customer_account_intc/app/settle_receipt/grouped_invoice";
 
-/** Écran du ticket : « Facture regroupée » sur un règlement de dette. */
+/**
+ * Écran du ticket : « Facture regroupée » seulement si le règlement règle
+ * des TICKETS (isSettleDueLine). Facture réglée ou dépôt : rien à facturer.
+ */
 patch(ReceiptScreen.prototype, {
     setup() {
         super.setup(...arguments);
@@ -14,9 +17,7 @@ patch(ReceiptScreen.prototype, {
     },
 
     get xIsSettlement() {
-        return (this.currentOrder?.lines || []).some(
-            (line) => line.isSettleDueLine?.() || line.isSettleInvoiceLine?.()
-        );
+        return (this.currentOrder?.lines || []).some((line) => line.isSettleDueLine?.());
     },
 
     async xGroupedInvoice() {

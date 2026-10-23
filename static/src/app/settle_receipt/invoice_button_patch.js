@@ -5,9 +5,10 @@ import { InvoiceButton } from "@point_of_sale/app/screens/ticket_screen/invoice_
 import { openGroupedInvoice } from "@pos_customer_account_intc/app/settle_receipt/grouped_invoice";
 
 /**
- * Écran des commandes, bouton Facture : sur un règlement de dette, la
- * facture regroupée (au lieu de facturer le règlement, commande à 0).
- * Autres tickets : natif inchangé.
+ * Écran des commandes, bouton Facture : sur un règlement de TICKETS
+ * (isSettleDueLine), la facture regroupée (au lieu de facturer le
+ * règlement, commande à 0). Autres commandes (dont facture réglée et
+ * dépôt) : natif inchangé.
  */
 patch(InvoiceButton.prototype, {
     setup() {
@@ -16,9 +17,7 @@ patch(InvoiceButton.prototype, {
     },
 
     get xIsSettlement() {
-        return (this.props.order?.lines || []).some(
-            (line) => line.isSettleDueLine?.() || line.isSettleInvoiceLine?.()
-        );
+        return (this.props.order?.lines || []).some((line) => line.isSettleDueLine?.());
     },
 
     get commandName() {

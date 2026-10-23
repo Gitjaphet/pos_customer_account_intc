@@ -1,28 +1,47 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <templates xml:space="preserve">
-    <!-- Ticket de règlement de dette : l'en-tête, le QR et le pied de page
-         natifs restent ; les lignes, le total et les paiements sont remplacés
-         par un bloc lisible. Vente normale : ticket natif inchangé. -->
+    <!-- Règlement ou dépôt de compte client : l'en-tête, le QR et le pied de
+         page natifs restent ; les lignes, le total et les paiements sont
+         remplacés par un bloc lisible. Vente normale : ticket natif. -->
     <t t-inherit="point_of_sale.OrderReceipt" t-inherit-mode="extension">
         <xpath expr="//OrderDisplay" position="attributes">
-            <attribute name="t-if">!isSettleReceipt</attribute>
+            <attribute name="t-if">!isAccountReceipt</attribute>
         </xpath>
         <xpath expr="//OrderDisplay" position="after">
-            <div t-if="isSettleReceipt" class="x-settle-receipt">
-                <div class="pos-receipt-center-align fw-bolder pt-2">RÈGLEMENT DE COMPTE</div>
+            <div t-if="isAccountReceipt" class="x-account-receipt">
+                <t t-if="isSettleReceipt">
+                    <div class="pos-receipt-center-align fw-bolder pt-2">RÈGLEMENT DE COMPTE</div>
 
-                <div class="fw-bolder pt-3">Tickets réglés</div>
-                <div t-foreach="settledRows" t-as="row" t-key="row_index" class="d-flex">
-                    <span class="ps-2">
-                        <t t-esc="row.name"/><t t-if="row.date"> (<t t-esc="row.date"/>)</t>
-                    </span>
-                    <span class="ms-auto font-monospace" t-out="formatCurrency(row.amount)"/>
-                </div>
+                    <t t-if="settledOrderRows.length">
+                        <div class="fw-bolder pt-3">Tickets réglés</div>
+                        <div t-foreach="settledOrderRows" t-as="row" t-key="row_index" class="d-flex">
+                            <span class="ps-2">
+                                <t t-esc="row.name"/><t t-if="row.date"> (<t t-esc="row.date"/>)</t>
+                            </span>
+                            <span class="ms-auto font-monospace" t-out="formatCurrency(row.amount)"/>
+                        </div>
+                    </t>
 
-                <div class="pos-receipt-amount fw-bolder pt-3">
-                    Montant réglé
-                    <span class="pos-receipt-right-align font-monospace" t-out="formatCurrency(settledTotal)"/>
-                </div>
+                    <t t-if="settledInvoiceRows.length">
+                        <div class="fw-bolder pt-3">Factures réglées</div>
+                        <div t-foreach="settledInvoiceRows" t-as="row" t-key="row_index" class="d-flex">
+                            <span class="ps-2" t-esc="row.name"/>
+                            <span class="ms-auto font-monospace" t-out="formatCurrency(row.amount)"/>
+                        </div>
+                    </t>
+
+                    <div class="pos-receipt-amount fw-bolder pt-3">
+                        Montant réglé
+                        <span class="pos-receipt-right-align font-monospace" t-out="formatCurrency(settledTotal)"/>
+                    </div>
+                </t>
+                <t t-else="">
+                    <div class="pos-receipt-center-align fw-bolder pt-2">DÉPÔT SUR COMPTE CLIENT</div>
+                    <div class="pos-receipt-amount fw-bolder pt-3">
+                        Montant déposé
+                        <span class="pos-receipt-right-align font-monospace" t-out="formatCurrency(depositTotal)"/>
+                    </div>
+                </t>
 
                 <div class="pt-3">Payé en</div>
                 <div t-foreach="realPaymentLines" t-as="p" t-key="p_index" class="d-flex">
@@ -37,10 +56,10 @@
             </div>
         </xpath>
         <xpath expr="//div[hasclass('receipt-total')]" position="attributes">
-            <attribute name="t-if">!isSettleReceipt</attribute>
+            <attribute name="t-if">!isAccountReceipt</attribute>
         </xpath>
         <xpath expr="//div[hasclass('paymentlines')]" position="attributes">
-            <attribute name="t-if">!isSettleReceipt</attribute>
+            <attribute name="t-if">!isAccountReceipt</attribute>
         </xpath>
     </t>
 </templates>
