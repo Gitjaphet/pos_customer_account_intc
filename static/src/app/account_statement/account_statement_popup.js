@@ -44,7 +44,7 @@ export class AccountStatementPopup extends Component {
             // l'imprimante), selon la configuration du point de vente.
             await this.pos.printer.print(
                 AccountStatementReceipt,
-                { data, company: this.pos.company },
+                { data, company: this.pos.company, logoUrl: this.pos.config.receiptLogoUrl },
                 this.pos.printOptions
             );
         } finally {

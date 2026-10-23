@@ -10,5 +10,6 @@ export class AccountStatementReceipt extends Component {
     static props = {
         data: Object,
         company: Object,
+        logoUrl: { type: String, optional: true },
     };
 }

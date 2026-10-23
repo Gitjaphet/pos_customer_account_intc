@@ -2,7 +2,10 @@
 <templates xml:space="preserve">
     <t t-name="pos_customer_account_intc.AccountStatementReceipt">
         <div class="pos-receipt">
-            <div class="text-center">
+            <!-- Même logo que les tickets du POS (ReceiptHeader :
+                 config.receiptLogoUrl). -->
+            <img t-if="props.logoUrl" t-att-src="props.logoUrl" alt="Logo" class="pos-receipt-logo"/>
+            <div class="text-center pt-3">
                 <div class="fw-bold" t-out="props.company.name"/>
                 <div style="font-size: 75%;">
                     <t t-if="props.company.street" t-out="props.company.street"/>
