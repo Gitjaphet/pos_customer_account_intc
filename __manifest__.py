@@ -1,6 +1,6 @@
 {
     "name": "INTC POS — Compte client : relevé et facture regroupée",
-    "version": "19.0.1.0.13",
+    "version": "19.0.1.0.14",
     "category": "Sales/Point of Sale",
     "summary": "Relevé des tickets en compte client (ticket et PDF), facture regroupée après règlement",
     "description": """
