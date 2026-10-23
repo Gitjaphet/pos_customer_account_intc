@@ -57,6 +57,31 @@ class PosOrder(models.Model):
             lines += super(PosOrder, order)._prepare_invoice_lines(move_type)
         return lines
 
+    # --- Opérations de compte client : jamais facturées en direct --------
+
+    def _x_is_account_operation(self):
+        """Règlement (ticket ou facture) ou dépôt de pos_settle_due : la
+        commande met de l'argent sur le compte client (paiement « Compte
+        client » négatif) ou règle un document. Ce n'est pas une vente."""
+        self.ensure_one()
+        return any(
+            p.payment_method_id.type == "pay_later" and p.amount < 0 for p in self.payment_ids
+        ) or any(l.settled_order_id or l.settled_invoice_id for l in self.lines)
+
+    def action_pos_order_invoice(self):
+        """Bouton Facture (POS et Odoo) : refusé sur une opération de compte
+        client. Un règlement de tickets se facture par « Facture regroupée »
+        (les tickets d'origine) ; une facture réglée existe déjà ; un dépôt
+        est une avance, facturée avec les consommations qu'il paiera."""
+        if not self.account_move and self._x_is_account_operation():
+            raise UserError(_(
+                "%s est un règlement ou un dépôt sur compte client : il ne se "
+                "facture pas. Pour un règlement de tickets, utilisez « Facture "
+                "regroupée ».",
+                self.pos_reference or self.name,
+            ))
+        return super().action_pos_order_invoice()
+
     # --- Depuis le POS ---------------------------------------------------
 
     @api.model
