@@ -6,6 +6,7 @@ on:
 
 jobs:
   test:
+    # Version figée : ubuntu-latest change sans prévenir (migration vers 26).
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout
@@ -58,51 +59,11 @@ jobs:
           port: ${{ secrets.VPS_PORT }}
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
-          command_timeout: 20m
+          command_timeout: 30m
+          # Script du VPS (/usr/local/bin/odoo-deploy-module) : mise à jour du
+          # module sur TOUTES les bases où il est installé (demo d'abord),
+          # sauvegarde de chaque base, restauration et retour du code si une
+          # base échoue (incident du 24/10/2026 : seule demo était mise à jour).
           script: |
             set -e
-            CLIENT_DIR=/odoo19/mes-modules-pro/pos_customer_account_intc
-            MODULE=pos_customer_account_intc
-            DB="${{ vars.ODOO_DB || 'demo' }}"
-            ODOO_BIN="/odoo19/odoo-venv/bin/python /odoo19/odoo-community/odoo-bin -c /odoo19/odoo.conf"
-            # Surnom SSH github-customer-account (~/.ssh/config du VPS) :
-            # clé de déploiement propre à ce dépôt.
-            REMOTE=git@github-customer-account:${{ github.repository }}.git
-
-            # 1. Code : le VPS reflète toujours GitHub (supporte un historique réécrit).
-            if [ -d "$CLIENT_DIR/.git" ]; then
-              cd "$CLIENT_DIR"
-              git remote set-url origin "$REMOTE"
-              PREV=$(git rev-parse HEAD)
-              git fetch origin
-              git reset --hard origin/main
-            else
-              git clone "$REMOTE" "$CLIENT_DIR"
-              cd "$CLIENT_DIR"
-              PREV=""
-            fi
-            echo "Déploiement : $(git log --oneline -1)"
-
-            # 2. Mise à jour du module, Odoo arrêté.
-            LOG=$(mktemp)
-            sudo systemctl stop odoo
-            set +e
-            sudo -u odoo19 $ODOO_BIN -d "$DB" -u "$MODULE" --stop-after-init > "$LOG" 2>&1
-            RC=$?
-            set -e
-
-            # 3. Échec : erreur affichée, retour au commit précédent, site maintenu.
-            if [ $RC -ne 0 ] || grep -q "Traceback" "$LOG"; then
-              echo "=== ÉCHEC de la mise à jour de $MODULE sur $DB ==="
-              tail -80 "$LOG"
-              if [ -n "$PREV" ]; then
-                git reset --hard "$PREV"
-                echo "Code revenu à $(git log --oneline -1)"
-              fi
-              sudo systemctl start odoo
-              exit 1
-            fi
-
-            # 4. Succès.
-            sudo systemctl start odoo
-            echo "Module $MODULE mis à jour sur $DB, Odoo redémarré."
+            odoo-deploy-module pos_customer_account_intc /odoo19/mes-modules-pro/pos_customer_account_intc git@github-customer-account:${{ github.repository }}.git
