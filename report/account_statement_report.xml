@@ -99,10 +99,22 @@
                                                         t-options='{"widget": "monetary", "display_currency": currency}'/>
                                             </td>
                                         </tr>
+                                        <!-- Contrôle du dû : écart avec la comptabilité. -->
+                                        <tr t-if="not d['due_check']['consistent']">
+                                            <td>Dû selon la comptabilité *</td>
+                                            <td class="text-end">
+                                                <span t-esc="d['due_check']['real_due']"
+                                                      t-options='{"widget": "monetary", "display_currency": currency}'/>
+                                            </td>
+                                        </tr>
                                     </table>
                                 </div>
                             </div>
                         </div>
+                        <p t-if="not d['due_check']['consistent']" class="text-muted small mt-3">
+                            * Le total dû des tickets diffère du solde comptable du compte client.
+                            À vérifier avec la comptabilité avant tout règlement.
+                        </p>
                     </div>
                 </t>
             </t>

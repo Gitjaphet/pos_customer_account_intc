@@ -10,6 +10,14 @@
                         (<t t-out="state.summary.orders.length"/> ticket(s) non réglé(s))
                     </span>
                 </p>
+                <!-- Contrôle du dû : écart avec la comptabilité. -->
+                <div t-if="state.summary.due_check and !state.summary.due_check.consistent"
+                     class="alert alert-warning py-2">
+                    Dû selon la comptabilité :
+                    <strong t-out="env.utils.formatCurrency(state.summary.due_check.real_due)"/>
+                    (écart <t t-out="env.utils.formatCurrency(state.summary.due_check.difference)"/>).
+                    À vérifier avec la comptabilité avant d'encaisser.
+                </div>
                 <div class="mb-3">
                     <div class="form-check">
                         <input class="form-check-input" type="radio" id="layout_detailed"

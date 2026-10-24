@@ -42,6 +42,14 @@
                 TOTAL DÛ
                 <span class="pos-receipt-right-align" t-out="env.utils.formatCurrency(props.data.total_due)"/>
             </div>
+            <!-- Contrôle du dû : écart avec la comptabilité. -->
+            <t t-if="props.data.due_check and !props.data.due_check.consistent">
+                <div class="pt-2">
+                    Dû selon la comptabilité
+                    <span class="pos-receipt-right-align" t-out="env.utils.formatCurrency(props.data.due_check.real_due)"/>
+                </div>
+                <div class="text-center pt-1" style="font-size: 75%;">* À vérifier avec la comptabilité</div>
+            </t>
             <div class="text-center pt-3" style="font-size: 75%;">
                 <t t-out="props.data.orders.length"/> ticket(s) non réglé(s)
             </div>
